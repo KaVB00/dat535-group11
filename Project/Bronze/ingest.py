@@ -128,6 +128,12 @@ def ingest_weather(root, man, start_date, end_date, run_id):
         log.info("saved %s", path)
         time.sleep(1)
 
+class BronzePipeline: 
+    def run(self):
+        ingest_trips()
+        ingest_weather()
+
+        return ("status":"success")
 
 def main():
     p = argparse.ArgumentParser()
