@@ -110,6 +110,7 @@ def ingest_trips(root, man, base, start, end, current_ym):
 
 
 def ingest_weather(root, man, start_date, end_date, run_id):
+    failures = 0
     for key, c in CITIES.items():
         params = {"latitude": c["lat"], "longitude": c["lon"], "start_date": start_date,
                   "end_date": end_date, "hourly": WEATHER_VARS, "timezone": "GMT"}
@@ -118,6 +119,7 @@ def ingest_weather(root, man, start_date, end_date, run_id):
             man.write(source="open-meteo", dataset="weather", city=key, status=f"http_{r.status_code}",
                       params=params)
             log.error("weather %s failed: %s", key, r.status_code)
+            failures += 1
             continue
         path = root / "weather" / key / f"{start_date}_{end_date}_{run_id}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -127,6 +129,7 @@ def ingest_weather(root, man, start_date, end_date, run_id):
                   sha256=sha256(r.content), status="downloaded")
         log.info("saved %s", path)
         time.sleep(1)
+    return failures
 
 class BronzePipeline: 
     def run(self):
@@ -155,6 +158,7 @@ def main():
     current_ym = f"{today.year}-{today.month:02d}"
     end = a.end or current_ym
     log.info("run %s", run_id)
+    failures = 0
 
     if not a.skip_trips:
         ingest_trips(root, man, a.trips_base_url, a.start, end, current_ym)
@@ -163,8 +167,12 @@ def main():
         w_start = (today - timedelta(days=a.weather_overlap_days)).isoformat() if have_weather \
             else f"{a.start}-01"
         w_end = (today - timedelta(days=1)).isoformat()   # archive API lags; yesterday is safe to ask for
-        ingest_weather(root, man, w_start, w_end, run_id)
+        failures += ingest_weather(root, man, w_start, w_end, run_id)
+    if failures:
+        log.error("%d weather request(s) failed", failures)
+        return 1
     log.info("done")
+    return 0
 
 
 if __name__ == "__main__":
