@@ -24,13 +24,15 @@ jobs:
       env:
         SPARK_HOME: /opt/spark
         JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
+        DAT535_ENV: prod
+        DAT535_OUTPUT_DIR: /home/ubuntu/spark-lab-data/prod
       run: |
         # Activate the environment
         source ~/spark-env/bin/activate
           
         # Run the pipeline
         echo "=== Starting Data Pipeline Execution ==="
-        python $GITHUB_WORKSPACE/run_pipeline.py all
+        python $GITHUB_WORKSPACE/run_pipeline.py project
 
         echo ""
         echo "=== All Pipelines Completed Successfully ==="

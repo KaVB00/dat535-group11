@@ -8,7 +8,7 @@ Examples
   python bronze/ingest.py --start 2022-01 --skip-weather  # trips only
   python bronze/ingest.py --weather-overlap-days 14       # weekly top-up
 """
-import argparse, hashlib, json, logging, sys, time, uuid
+import argparse, hashlib, json, logging, sys, time, uuid, os
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -100,13 +100,14 @@ def ingest_trips(root, man, base, start, end, current_ym):
                 man.write(source="urbansharing", dataset="trips", city=key, period=ym,
                           url=url, path=str(path), sha256=digest, status="unchanged")
                 continue
+            existed = path.exists()
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(r.content)                # raw bytes, untouched
             log.info("saved %s (%d bytes)", path, len(r.content))
             man.write(source="urbansharing", dataset="trips", city=key, period=ym, url=url,
                       path=str(path), bytes=len(r.content), sha256=digest,
-                      status="replaced_current_month" if is_current else "downloaded")
-            time.sleep(0.5)                            # be polite
+                                            status="replaced_current_month" if existed else "downloaded")
+            time.sleep(0.5)                            
 
 
 def ingest_weather(root, man, start_date, end_date, run_id):
@@ -133,14 +134,22 @@ def ingest_weather(root, man, start_date, end_date, run_id):
 
 class BronzePipeline: 
     def run(self):
-        ingest_trips()
-        ingest_weather()
+        default_raw_dir = Path(__file__).resolve().parent.parent / "raw"
 
-        return ("status: success")
+        raw_dir = os.environ.get(
+            "DAT535_RAW_DIR",
+            str(default_raw_dir)
+        )
 
-def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("--data-dir", default="data/raw")
+        result = main(["--data-dir", raw_dir])
+
+        return {
+            "status": "success" if result == 0 else "failed"
+        }
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description="Bronze ingestion: bike-sharing and weather data")
+    p.add_argument("--data-dir", default="data/raw") ## merknad
     p.add_argument("--start", default="2022-01", help="first trip month, YYYY-MM")
     p.add_argument("--end", default=None, help="last trip month (default: current month)")
     p.add_argument("--trips-base-url", default=TRIPS_BASE)
@@ -148,7 +157,7 @@ def main():
     p.add_argument("--skip-weather", action="store_true")
     p.add_argument("--weather-overlap-days", type=int, default=14,
                    help="days re-fetched on top-up runs (used when weather already exists)")
-    a = p.parse_args()
+    a = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     root = Path(a.data_dir)
