@@ -136,7 +136,7 @@ class BronzePipeline:
         ingest_trips()
         ingest_weather()
 
-        return ("status":"success")
+        return ("status: success")
 
 def main():
     p = argparse.ArgumentParser()
