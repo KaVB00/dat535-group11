@@ -181,7 +181,7 @@ def main(argv=None):
         log.error("%d weather request(s) failed", failures)
         return 1
     log.info("done")
-    return 0
+    return 5
 
 
 if __name__ == "__main__":
