@@ -2,36 +2,68 @@ name: Pipeline
 
 on:
   workflow_dispatch:
-  #push:
-  #  branches: [ main ]
+  push:
+    branches: [ dev ]
+    paths: [".github/workflows/pipeline.yml"]
   schedule:
     # Alternative intervals (uncomment one and comment out the active line below):
     #- cron: "0 0 * * *"    # every day at midnight UTC
     #- cron: '0 * * * *'    # every hour
     #- cron: '0 */6 * * *'  # every 6 hours
-    - cron: '0 0 1 * *'     # active: monthly, 1st of month at 00:00 UTC
+    - cron: '0 6 * * 1'     # active: weekly, Mondays at 06:00 UTC
 
 jobs:
-  run-pipeline:
-    name: Run PySpark Pipeline
+  test:
+    name: Unit test
     runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: dev
+
+      - name: Run unit tests
+        run: |
+          source ~/spark-env/bin/activate
+          python -m unittest discover -s Project/tests -v
+
+  run-pipeline:
+    name: Run Project Pipeline
+    needs: test
+    runs-on: self-hosted
+    environment: dev
+    env:
+      SPARK_HOME: /opt/spark
+      JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
+      with:
+        ref: dev
 
-    - name: Run Pipeline
-      env:
-        SPARK_HOME: /opt/spark
-        JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
-        DAT535_RAW_DIR: /home/ubuntu/group11/Project/raw
-      run: |
-        # Activate the environment
-        source ~/spark-env/bin/activate
-          
-        # Run the pipeline
-        echo "=== Starting Data Pipeline Execution ==="
-        python $GITHUB_WORKSPACE/run_pipeline.py project
+    - name: Resolve data directory
+        id: dirs
+        # Persistent folder outside the checkout: actions/checkout cleans the workspace
+        # (git clean -ffdx) and would otherwise delete the raw data every run.
+      run: echo "raw=$HOME/spark-lab-data/dev/project/raw" >> "$GITHUB_OUTPUT"
 
-        echo ""
-        echo "=== All Pipelines Completed Successfully ==="
+    - name: Run Bronze ingestion
+        env:
+          DAT535_RAW_DIR: ${{ steps.dirs.outputs.raw }}
+        run: |
+          source ~/spark-env/bin/activate
+          mkdir -p "$DAT535_RAW_DIR"
+
+          echo "=== Starting Project Pipeline ==="
+          python $GITHUB_WORKSPACE/run_pipeline.py project
+          echo "=== Project Pipeline Completed ==="
+
+      - name: Upload manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: manifest-${{ github.run_number }}
+          path: ${{ steps.dirs.outputs.raw }}/_manifest/
+          retention-days: 30
+          if-no-files-found: ignore
