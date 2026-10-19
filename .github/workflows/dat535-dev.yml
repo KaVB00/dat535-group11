@@ -9,7 +9,7 @@ on:
 
 jobs:
   run-dev:
-    name: Run Dev Pipeline
+    name: Run Dev Project Pipeline
     runs-on: self-hosted
     environment: dev
     env:
@@ -26,14 +26,14 @@ jobs:
         # Persistent, non-tmp path: survives runner reboots/tmpfiles cleanup, unlike /tmp
         run: echo "dir=$HOME/spark-lab-data/dev" >> "$GITHUB_OUTPUT"
 
-      - name: Run Lab 2 & Lab 3 Pipelines
+      - name: Run Project Pipeline 
         env:
           DAT535_OUTPUT_DIR: ${{ steps.output-dir.outputs.dir }}
         run: |
           source ~/spark-env/bin/activate
           mkdir -p "$DAT535_OUTPUT_DIR"
           
-          echo "=== Running Dev Pipeline ==="
+          echo "=== Running Bike-Sharing & Weather Dev Pipeline ==="
           python $GITHUB_WORKSPACE/run_pipeline.py project
 
       - name: Upload Dev artifacts

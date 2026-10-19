@@ -5,12 +5,12 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      lab:
+      pipeline:
         description: Pipeline to run
         required: true
         default: project
         type: choice
-        options: [project, Bronze]
+        options: [project, bronze]
 
 jobs:
   deploy-prod:
