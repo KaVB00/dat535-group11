@@ -43,7 +43,7 @@ jobs:
         ref: dev
 
     - name: Resolve data directory
-        id: dirs
+      id: dirs
         # Persistent folder outside the checkout: actions/checkout cleans the workspace
         # (git clean -ffdx) and would otherwise delete the raw data every run.
       run: echo "raw=$HOME/spark-lab-data/dev/project/raw" >> "$GITHUB_OUTPUT"
