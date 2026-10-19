@@ -6,19 +6,20 @@ on:
   workflow_dispatch:
     inputs:
       lab:
-        description: Lab to run
+        description: Pipeline to run
         required: true
-        default: all
+        default: project
         type: choice
-        options: [all, lab2, lab3]
+        options: [project, Bronze]
 
 jobs:
   deploy-prod:
-    name: Deploy to Production
+    name: Run Bike-sharing & Weather Pipeline
     runs-on: self-hosted
     environment: main
     env:
       DAT535_ENV: prod
+      DAT535_OUTPUT_DIR: /home/ubuntu/group11/Project/raw
       SPARK_HOME: /opt/spark
       JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
 
@@ -38,9 +39,9 @@ jobs:
           source ~/spark-env/bin/activate
           mkdir -p "$DAT535_OUTPUT_DIR"
           
-          LAB_TO_RUN="${{ github.event.inputs.lab || 'project' }}"
-          echo "=== Running Production Pipeline ($LAB_TO_RUN) ==="
-          python $GITHUB_WORKSPACE/run_pipeline.py $LAB_TO_RUN
+          PIPELINE_TO_RUN="${{ inputs.pipeline || 'project' }}"
+          echo "=== Running Bike-Sharing & Weather Pipeline ($PIPELINE_TO_RUN) ==="
+          python $GITHUB_WORKSPACE/run_pipeline.py $L<PIPELINE_TO_RUN
 
       - name: Upload Production artifacts
         uses: actions/upload-artifact@v7
@@ -52,10 +53,11 @@ jobs:
 
       - name: Write pipeline summary
         run: |
-          echo "## Production Pipeline Run" >> $GITHUB_STEP_SUMMARY
+          echo "## Bike-sharing & Weather Production Pipeline" >> $GITHUB_STEP_SUMMARY
           echo "| Key | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Run # | ${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Lab | ${{ github.event.inputs.lab || 'all' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pipeline | ${{ inputs.pipeline || 'project' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Triggered by | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Branch | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ jobs.Status }} |" >> $GITHUB_STEP_SUMMARY 
