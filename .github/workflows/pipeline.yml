@@ -49,9 +49,9 @@ jobs:
       run: echo "raw=$HOME/spark-lab-data/dev/project/raw" >> "$GITHUB_OUTPUT"
 
     - name: Run Bronze ingestion
-        env:
+      env:
           DAT535_RAW_DIR: ${{ steps.dirs.outputs.raw }}
-        run: |
+      run: |
           source ~/spark-env/bin/activate
           mkdir -p "$DAT535_RAW_DIR"
 
@@ -59,10 +59,10 @@ jobs:
           python $GITHUB_WORKSPACE/run_pipeline.py project
           echo "=== Project Pipeline Completed ==="
 
-      - name: Upload manifest
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
+    - name: Upload manifest
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
           name: manifest-${{ github.run_number }}
           path: ${{ steps.dirs.outputs.raw }}/_manifest/
           retention-days: 30
