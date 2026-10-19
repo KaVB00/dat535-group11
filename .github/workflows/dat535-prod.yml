@@ -19,7 +19,6 @@ jobs:
     environment: main
     env:
       DAT535_ENV: prod
-      DAT535_OUTPUT_DIR: /home/ubuntu/group11/Project/raw
       SPARK_HOME: /opt/spark
       JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
 
@@ -35,29 +34,26 @@ jobs:
       - name: Run Production Pipeline
         env:
           DAT535_OUTPUT_DIR: ${{ steps.output-dir.outputs.dir }}
+          DAT535_RAW_DIR: ${{ steps.output-dir.outputs.dir }}/project/raw
         run: |
           source ~/spark-env/bin/activate
-          mkdir -p "$DAT535_OUTPUT_DIR"
-          
+          mkdir -p "$DAT535_OUTPUT_DIR" "$DAT535_RAW_DIR"
+
           PIPELINE_TO_RUN="${{ inputs.pipeline || 'project' }}"
           echo "=== Running Bike-Sharing & Weather Pipeline ($PIPELINE_TO_RUN) ==="
-          python $GITHUB_WORKSPACE/run_pipeline.py $L<PIPELINE_TO_RUN
+          python $GITHUB_WORKSPACE/run_pipeline.py "$PIPELINE_TO_RUN"
 
-      - name: Upload Production artifacts
+      - name: Upload Production manifest
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: prod-outputs-${{ github.run_number }}
-          path: ${{ steps.output-dir.outputs.dir }}/
+          name: prod-manifest-${{ github.run_number }}
+          path: ${{ steps.output-dir.outputs.dir }}/project/raw/_manifest/
           retention-days: 30
           if-no-files-found: ignore
 
       - name: Write pipeline summary
+        if: always()
         run: |
-          echo "## Bike-sharing & Weather Production Pipeline" >> $GITHUB_STEP_SUMMARY
-          echo "| Key | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Run # | ${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Pipeline | ${{ inputs.pipeline || 'project' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Triggered by | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Branch | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | ${{ jobs.status }} |" >> $GITHUB_STEP_SUMMARY 
+          echo "## Production Pipeline Run" >> $GITHUB_STEP_SUMMARY
+          echo "| Key
