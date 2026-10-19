@@ -60,4 +60,4 @@ jobs:
           echo "| Pipeline | ${{ inputs.pipeline || 'project' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Triggered by | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Branch | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | ${{ jobs.Status }} |" >> $GITHUB_STEP_SUMMARY 
+          echo "| Status | ${{ jobs.status }} |" >> $GITHUB_STEP_SUMMARY 
