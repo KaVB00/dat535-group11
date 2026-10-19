@@ -38,7 +38,7 @@ jobs:
           source ~/spark-env/bin/activate
           mkdir -p "$DAT535_OUTPUT_DIR"
           
-          LAB_TO_RUN="${{ github.event.inputs.lab || 'all' }}"
+          LAB_TO_RUN="${{ github.event.inputs.lab || 'project' }}"
           echo "=== Running Production Pipeline ($LAB_TO_RUN) ==="
           python $GITHUB_WORKSPACE/run_pipeline.py $LAB_TO_RUN
 

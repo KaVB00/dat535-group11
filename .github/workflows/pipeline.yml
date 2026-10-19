@@ -24,8 +24,7 @@ jobs:
       env:
         SPARK_HOME: /opt/spark
         JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
-        DAT535_ENV: prod
-        DAT535_OUTPUT_DIR: /home/ubuntu/spark-lab-data/prod
+        DAT535_RAW_DIR: /home/ubuntu/group11/Project/raw
       run: |
         # Activate the environment
         source ~/spark-env/bin/activate

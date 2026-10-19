@@ -34,7 +34,7 @@ jobs:
           mkdir -p "$DAT535_OUTPUT_DIR"
           
           echo "=== Running Dev Pipeline ==="
-          python $GITHUB_WORKSPACE/run_pipeline.py all
+          python $GITHUB_WORKSPACE/run_pipeline.py project
 
       - name: Upload Dev artifacts
         uses: actions/upload-artifact@v7
