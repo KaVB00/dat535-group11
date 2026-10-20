@@ -29,17 +29,19 @@ jobs:
       - name: Run Project Pipeline 
         env:
           DAT535_OUTPUT_DIR: ${{ steps.output-dir.outputs.dir }}
+          DAT535_RAW_DIR: ${{ steps.output-dir.outputs.dir }}/project/raw
         run: |
           source ~/spark-env/bin/activate
-          mkdir -p "$DAT535_OUTPUT_DIR"
+          mkdir -p "$DAT535_OUTPUT_DIR" "$DAT535_RAW_DIR"
           
           echo "=== Running Bike-Sharing & Weather Dev Pipeline ==="
           python $GITHUB_WORKSPACE/run_pipeline.py project
 
-      - name: Upload Dev artifacts
+      - name: Upload Dev manifest
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: dev-outputs-${{ github.run_number }}
-          path: ${{ steps.output-dir.outputs.dir }}/
+          name: dev-manifest-${{ github.run_number }}
+          path: ${{ steps.output-dir.outputs.dir }}/project/raw/_manifest/
           retention-days: 7
           if-no-files-found: ignore
