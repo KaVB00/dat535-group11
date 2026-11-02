@@ -8,7 +8,8 @@ from pyspark.sql.functions import (
     input_file_name,
     regexp_extract,
     row_number,
-    to_timestamp
+    to_timestamp,
+    current_timestamp
 )
 from pyspark.sql.window import Window
 
@@ -39,7 +40,8 @@ def build_silver_weather(spark: SparkSession, raw_dir: str) -> DataFrame:
     return (wx2
             .withColumn("rn", row_number().over(win))
             .filter(col("rn") == 1)
-            .drop("rn", "src", "time"))
+            .drop("rn", "src", "time")
+            .withColumn("_silver_processed_time", current_timestamp()))
 
 
 
