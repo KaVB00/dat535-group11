@@ -16,7 +16,7 @@ import requests
 
 CITIES = {  # key = host path used by Urban Sharing; lat/lon used for weather
     "oslo":      {"host": "oslobysykkel.no",      "lat": 59.91, "lon": 10.75},
-    "bergen":    {"host": "bergenbysykkel.no",    "lat": 60.39, "lon": 5.32},
+    "bergen":    {"host": "bergenbysykkel.no",    "lat": 60.39, "lon": 5.32,    "last_trip_month": "2026-10"},
     "trondheim": {"host": "trondheimbysykkel.no", "lat": 63.43, "lon": 10.40},
 }
 TRIPS_BASE = "https://data.urbansharing.com"
@@ -82,6 +82,13 @@ def ingest_trips(root, man, base, start, end, current_ym):
     for key, c in CITIES.items():
         for y, m in months(start, end):
             ym = f"{y}-{m:02d}"
+
+            last_month = c.get("last_trip_month")
+
+            if last_month and ym > last_month:
+                log.info("Skipping %s for %s: service discountinued", key, ym)
+                continue
+
             url = f"{base}/{c['host']}/trips/v1/{y}/{m:02d}.csv"
             path = root / "trips" / key / f"{ym}.csv"
             is_current = ym == current_ym
