@@ -4,3 +4,4 @@ Project/raw/
 .venv/
 __pycache__/
 *.pyc
+actionlint
