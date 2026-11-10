@@ -12,6 +12,10 @@ on:
         type: choice
         options: [project, bronze]
 
+concurrency:
+  group: dat535-prod
+  cancel-in-progress: false
+
 jobs:
   deploy-prod:
     name: Run Bike-sharing & Weather Pipeline
