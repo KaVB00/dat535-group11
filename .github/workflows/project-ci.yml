@@ -1,0 +1,29 @@
+name: Final Project CI
+
+on:
+  push:
+    branches: [dev]
+    paths: 
+      - "Project/Bronze/**"
+      - "Project/tests/**"
+      - ".github/workflows/project-ci.yml"
+  pull_request:
+    branches: [dev]
+    paths: 
+      - "Project/Bronze/**"
+      - "Project/tests/**"
+      - ".github/workflows/project-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Run unit tests
+        run: |
+          source ~/spark-env/bin/activate
+          python -m unittest discover -s Project/tests -v

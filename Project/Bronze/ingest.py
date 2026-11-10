@@ -8,7 +8,7 @@ Examples
   python bronze/ingest.py --start 2022-01 --skip-weather  # trips only
   python bronze/ingest.py --weather-overlap-days 14       # weekly top-up
 """
-import argparse, hashlib, json, logging, sys, time, uuid
+import argparse, hashlib, json, logging, sys, time, uuid, os
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -100,16 +100,18 @@ def ingest_trips(root, man, base, start, end, current_ym):
                 man.write(source="urbansharing", dataset="trips", city=key, period=ym,
                           url=url, path=str(path), sha256=digest, status="unchanged")
                 continue
+            existed = path.exists()
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(r.content)                # raw bytes, untouched
             log.info("saved %s (%d bytes)", path, len(r.content))
             man.write(source="urbansharing", dataset="trips", city=key, period=ym, url=url,
                       path=str(path), bytes=len(r.content), sha256=digest,
-                      status="replaced_current_month" if is_current else "downloaded")
-            time.sleep(0.5)                            # be polite
+                                            status="replaced_current_month" if existed else "downloaded")
+            time.sleep(0.5)                            
 
 
 def ingest_weather(root, man, start_date, end_date, run_id):
+    failures = 0
     for key, c in CITIES.items():
         params = {"latitude": c["lat"], "longitude": c["lon"], "start_date": start_date,
                   "end_date": end_date, "hourly": WEATHER_VARS, "timezone": "GMT"}
@@ -118,6 +120,7 @@ def ingest_weather(root, man, start_date, end_date, run_id):
             man.write(source="open-meteo", dataset="weather", city=key, status=f"http_{r.status_code}",
                       params=params)
             log.error("weather %s failed: %s", key, r.status_code)
+            failures += 1
             continue
         path = root / "weather" / key / f"{start_date}_{end_date}_{run_id}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -127,11 +130,26 @@ def ingest_weather(root, man, start_date, end_date, run_id):
                   sha256=sha256(r.content), status="downloaded")
         log.info("saved %s", path)
         time.sleep(1)
+    return failures
 
+class BronzePipeline: 
+    def run(self):
+        default_raw_dir = Path(__file__).resolve().parent.parent / "raw"
 
-def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("--data-dir", default="data/raw")
+        raw_dir = os.environ.get(
+            "DAT535_RAW_DIR",
+            str(default_raw_dir)
+        )
+
+        result = main(["--data-dir", raw_dir])
+
+        return {
+            "status": "success" if result == 0 else "failed"
+        }
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description="Bronze ingestion: bike-sharing and weather data")
+    p.add_argument("--data-dir", default="data/raw") ## merknad
     p.add_argument("--start", default="2022-01", help="first trip month, YYYY-MM")
     p.add_argument("--end", default=None, help="last trip month (default: current month)")
     p.add_argument("--trips-base-url", default=TRIPS_BASE)
@@ -139,7 +157,7 @@ def main():
     p.add_argument("--skip-weather", action="store_true")
     p.add_argument("--weather-overlap-days", type=int, default=14,
                    help="days re-fetched on top-up runs (used when weather already exists)")
-    a = p.parse_args()
+    a = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     root = Path(a.data_dir)
@@ -149,6 +167,7 @@ def main():
     current_ym = f"{today.year}-{today.month:02d}"
     end = a.end or current_ym
     log.info("run %s", run_id)
+    failures = 0
 
     if not a.skip_trips:
         ingest_trips(root, man, a.trips_base_url, a.start, end, current_ym)
@@ -157,8 +176,12 @@ def main():
         w_start = (today - timedelta(days=a.weather_overlap_days)).isoformat() if have_weather \
             else f"{a.start}-01"
         w_end = (today - timedelta(days=1)).isoformat()   # archive API lags; yesterday is safe to ask for
-        ingest_weather(root, man, w_start, w_end, run_id)
+        failures += ingest_weather(root, man, w_start, w_end, run_id)
+    if failures:
+        log.error("%d weather request(s) failed", failures)
+        return 1
     log.info("done")
+    return 0
 
 
 if __name__ == "__main__":

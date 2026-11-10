@@ -1,0 +1,40 @@
+name: Final Project Ingest
+
+on:
+  schedule:
+    - cron:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref:
+      - name: Run unit tests
+        run: |
+          source ~/spark-env/bin/activate
+            python -m unittest discover -s Project/tests -v
+
+  ingest:
+    name: Run Bronze ingestion
+    needs: Unit tests
+    runs-on: self-hosted
+    environment:
+    env:
+      DATA_DIR:
+        - uses: actions/checkout@v7
+          with:
+            ref:
+        - name: Run ingestion
+          run: |
+            source ~/spark-env/bin/activate
+            mkdir -p "$DATA_DIR"
+
+        - name: Upload manifest
+          if: always()
+          uses: actions/upload-artifact@v7
+          with:
+            name: manifest-${{ github.}}

@@ -50,6 +50,17 @@ def run_lab3():
     pipeline = Lab3Pipeline()
     return pipeline.run()
 
+def run_bronze(): 
+    """Running bike-sharing and weather ingestion."""
+
+    logger.info("=" * 60)
+    logger.info("RUNNING BRONZE LAYER")
+    logger.info("=" * 60)
+
+    from Project.Bronze.ingest import BronzePipeline
+    pipeline = BronzePipeline()
+    return pipeline.run()
+
 
 def run_all():
     """Run all labs in sequence (Lab 2 must complete before Lab 3)."""
@@ -96,6 +107,20 @@ def run_all():
     
     return results
 
+def run_project(): 
+    """Run the bike-sharing and weather project."""
+
+    logger.info("=" * 60)
+    logger.info("RUNNING PROJECT PIPELINE")
+    logger.info("=" * 60)
+
+    bronze_result = run_bronze()
+
+    if bronze_result.get("status") != "success":
+        return {"status": "failed"}
+
+    return{"status": "success"}
+
 
 def main():
     """Main entry point."""
@@ -119,7 +144,7 @@ Labs:
     
     parser.add_argument(
         'pipeline',
-        choices=['lab2', 'lab3', 'all'],
+        choices=['lab2', 'lab3', 'all', 'bronze', 'project'],
         help='Pipeline to run'
     )
     
@@ -129,7 +154,9 @@ Labs:
     pipeline_map = {
         'lab2': run_lab2,
         'lab3': run_lab3,
-        'all': run_all
+        'all': run_all,
+        'bronze': run_bronze,
+        'project': run_project
     }
     
     try:
