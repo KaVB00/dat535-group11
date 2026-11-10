@@ -2,7 +2,7 @@ name: Final Project Ingest
 
 on:
   schedule:
-    - cron:
+    - cron: "0 6 2 * *"   # 06:00 UTC on the 2nd of each month; adjust as needed
   workflow_dispatch:
 
 jobs:
@@ -11,30 +11,27 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref:
       - name: Run unit tests
         run: |
           source ~/spark-env/bin/activate
-            python -m unittest discover -s Project/tests -v
+          python -m unittest discover -s Project/tests -v
 
   ingest:
     name: Run Bronze ingestion
-    needs: Unit tests
+    needs: test
     runs-on: self-hosted
-    environment:
     env:
-      DATA_DIR:
-        - uses: actions/checkout@v7
-          with:
-            ref:
-        - name: Run ingestion
-          run: |
-            source ~/spark-env/bin/activate
-            mkdir -p "$DATA_DIR"
-
-        - name: Upload manifest
-          if: always()
-          uses: actions/upload-artifact@v7
-          with:
-            name: manifest-${{ github.}}
+      DATA_DIR: data/bronze
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run ingestion
+        run: |
+          source ~/spark-env/bin/activate
+          mkdir -p "$DATA_DIR"
+          # python Project/ingest.py   <- your ingestion command goes here
+      - name: Upload manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: manifest-${{ github.run_id }}
+          path: ${{ env.DATA_DIR }}/manifest.jsonl
