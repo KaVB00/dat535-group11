@@ -22,6 +22,7 @@ Usage:
 
     # Or via run_pipeline.py (Lab 2 must run first):
     python run_pipeline.py lab3
+    # Just test
 """
 
 import logging
