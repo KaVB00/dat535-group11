@@ -128,13 +128,13 @@ def run_project():
     bronze_result = run_bronze()
 
     if bronze_result.get("status") != "success":
+        logger.error("Bronze failed, skipping Silver: %s", bronze_result)
         return {"status": "failed"}
-
-    return {"status": "success"}
 
     silver_result = run_silver()
 
     if silver_result.get("status") != "success":
+        logger.error("Silver failed: %s", silver_result)
         return {"status": "failed"}
 
     return {"status": "success"}
