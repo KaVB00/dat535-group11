@@ -61,6 +61,17 @@ def run_bronze():
     pipeline = BronzePipeline()
     return pipeline.run()
 
+def run_silver(): ##Need to update to include trips
+    """Running Silver cleaning"""
+
+    logger.info("=" * 60)
+    logger.info("RUNNING SILVER LAYER")
+    logger.info("=" * 60)
+
+    from Project.Silver.silver_pipeline import SilverPipeline
+    pipeline = SilverPipeline()
+    return pipeline.run()
+
 
 def run_all():
     """Run all labs in sequence (Lab 2 must complete before Lab 3)."""
@@ -119,7 +130,14 @@ def run_project():
     if bronze_result.get("status") != "success":
         return {"status": "failed"}
 
-    return{"status": "success"}
+    return {"status": "success"}
+
+    silver_result = run_silver()
+
+    if silver_result.get("status") != "success":
+        return {"status": "failed"}
+
+    return {"status": "success"}
 
 
 def main():
@@ -144,7 +162,7 @@ Labs:
     
     parser.add_argument(
         'pipeline',
-        choices=['lab2', 'lab3', 'all', 'bronze', 'project'],
+        choices=['lab2', 'lab3', 'all', 'bronze', 'silver', 'project'],
         help='Pipeline to run'
     )
     
@@ -156,6 +174,7 @@ Labs:
         'lab3': run_lab3,
         'all': run_all,
         'bronze': run_bronze,
+        'silver': run_silver,
         'project': run_project
     }
     
