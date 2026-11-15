@@ -5,13 +5,17 @@ on:
     branches: [dev]
     paths: 
       - "Project/Bronze/**"
+      - "Project/Silver/**"
       - "Project/tests/**"
+      - "run_pipeline.py"
       - ".github/workflows/project-ci.yml"
   pull_request:
     branches: [dev]
     paths: 
       - "Project/Bronze/**"
+      - "Project/Silver/**"
       - "Project/tests/**"
+      - "run_pipeline.py"
       - ".github/workflows/project-ci.yml"
   workflow_dispatch:
 
