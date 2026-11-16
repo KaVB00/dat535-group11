@@ -36,7 +36,7 @@ class SilverPipeline:
 
             # Silver trips
             trips = silver_trips.build_silver_trips(self.spark, self.raw_dir)
-            trips.write.mode("overwrite").partitionBy("city", "year-month").parquet(f"{self.silver_dir}/trips")
+            trips.write.mode("overwrite").partitionBy("city", "year_month").parquet(f"{self.silver_dir}/trips")
             trips_metrics = silver_trips.trips_quality_metrics(self.spark, self.raw_dir)
             log.info("Silver trips metrics: %s", trips_metrics)
 
