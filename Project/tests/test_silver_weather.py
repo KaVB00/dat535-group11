@@ -100,6 +100,10 @@ class TestSilverWeather(unittest.TestCase):
         self.assertEqual(df.filter(F.col("ts_utc").isNull()).count(), 0)
         ts = df.select(F.col("ts_utc").cast("string")).collect()[0][0]
         self.assertEqual(ts, "2026-01-01 13:00:00")
+        # Oslo is UTC+1 in January, so the local hour is one hour later
+        local = df.select(F.col("ts_local").cast("string")).collect()[0][0]
+        self.assertEqual(local, "2026-01-01 14:00:00")
+
 
     def test_processed_time_column_is_filled(self):
         write_weather_file(self.raw, "oslo", OLD_RUN, 0, [1.0, 1.0])
@@ -116,6 +120,7 @@ class TestSilverWeather(unittest.TestCase):
             "rows_out": 6,
             "duplicates_removed": 2,
         })
+
 
 
 if __name__ == "__main__":
