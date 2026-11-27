@@ -16,19 +16,19 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Silver"))
-import silver_weather  
+import silver_weather
 
 
 OLD_RUN = "20261001T060000Z-aaaaaa"
 NEW_RUN = "20261008T060000Z-bbbbbb"
 
 
-def write_weather_file(raw_dir, city, run_id, start_hour, temps):
-    """Write one fake Open-Meteo file: one value per hour on 2026-01-01,
+def write_weather_file(raw_dir, city, run_id, start_hour, temps, date="2026-01-01"):
+    """Write one fake Open-Meteo file: one value per hour on the given date,
     starting at start_hour, with the given temperatures."""
     n = len(temps)
     payload = {"hourly": {
-        "time": [f"2026-01-01T{h:02d}:00" for h in range(start_hour, start_hour + n)],
+        "time": [f"{date}T{h:02d}:00" for h in range(start_hour, start_hour + n)],
         "temperature_2m": temps,
         "rain": [0.0] * n,
         "wind_speed_10m": [0.0] * n,
@@ -37,7 +37,7 @@ def write_weather_file(raw_dir, city, run_id, start_hour, temps):
     }}
     folder = Path(raw_dir) / "weather" / city
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / f"2026-01-01_2026-01-01_{run_id}.json").write_text(json.dumps(payload))
+    (folder / f"{date}_{date}_{run_id}.json").write_text(json.dumps(payload))
 
 
 class TestSilverWeather(unittest.TestCase):
@@ -86,6 +86,13 @@ class TestSilverWeather(unittest.TestCase):
         self.assertEqual(temp_by_hour["2026-01-01 03:00:00"], 9.0)   # in both: newest wins
         self.assertEqual(temp_by_hour["2026-01-01 05:00:00"], 9.0)   # only in the new file
 
+    def test_files_for_different_days_are_all_kept(self):
+        write_weather_file(self.raw, "oslo", OLD_RUN, 0, [1.0, 1.0], date="2026-01-01")
+        write_weather_file(self.raw, "oslo", OLD_RUN, 0, [2.0, 2.0], date="2026-01-02")
+        df = self.silver()
+        # different days are different hours, so dedup must not remove any of them
+        self.assertEqual(df.count(), 4)
+
     def test_city_comes_from_folder_name_and_cities_are_not_mixed(self):
         write_weather_file(self.raw, "oslo", OLD_RUN, 0, [1.0, 1.0])
         write_weather_file(self.raw, "bergen", OLD_RUN, 0, [2.0, 2.0])
@@ -104,6 +111,20 @@ class TestSilverWeather(unittest.TestCase):
         local = df.select(F.col("ts_local").cast("string")).collect()[0][0]
         self.assertEqual(local, "2026-01-01 14:00:00")
 
+    def test_local_time_follows_daylight_saving(self):
+        write_weather_file(self.raw, "oslo", OLD_RUN, 12, [1.0], date="2026-07-01")
+        local = self.silver().select(F.col("ts_local").cast("string")).collect()[0][0]
+        # Oslo is UTC+2 in summer
+        self.assertEqual(local, "2026-07-01 14:00:00")
+
+    def test_output_has_expected_columns_and_types(self):
+        write_weather_file(self.raw, "oslo", OLD_RUN, 0, [1.0])
+        types = dict(self.silver().dtypes)
+        self.assertEqual(types["ts_utc"], "timestamp")
+        self.assertEqual(types["ts_local"], "timestamp")
+        self.assertEqual(types["temperature_2m"], "double")
+        for c in ("city", "precipitation", "rain", "wind_speed_10m", "apparent_temperature"):
+            self.assertIn(c, types)
 
     def test_processed_time_column_is_filled(self):
         write_weather_file(self.raw, "oslo", OLD_RUN, 0, [1.0, 1.0])
@@ -121,6 +142,10 @@ class TestSilverWeather(unittest.TestCase):
             "duplicates_removed": 2,
         })
 
+    def test_quality_metrics_without_overlap(self):
+        write_weather_file(self.raw, "oslo", OLD_RUN, 0, [1.0, 1.0, 1.0])
+        m = silver_weather.weather_quality_metrics(self.spark, self.raw)
+        self.assertEqual((m["rows_in"], m["rows_out"], m["duplicates_removed"]), (3, 3, 0))
 
 
 if __name__ == "__main__":

@@ -139,24 +139,23 @@ def ingest_weather(root, man, start_date, end_date, run_id):
         time.sleep(1)
     return failures
 
-class BronzePipeline: 
+def default_raw_dir():
+    """Raw data folder: DAT535_RAW_DIR if set, otherwise Project/data/raw."""
+    fallback = Path(__file__).resolve().parent.parent / "data" / "raw"
+    return os.environ.get("DAT535_RAW_DIR", str(fallback))
+
+
+class BronzePipeline:
     def run(self):
-        default_raw_dir = Path(__file__).resolve().parent.parent / "raw"
-
-        raw_dir = os.environ.get(
-            "DAT535_RAW_DIR",
-            str(default_raw_dir)
-        )
-
-        result = main(["--data-dir", raw_dir])
-
+        result = main(["--data-dir", default_raw_dir()])
         return {
             "status": "success" if result == 0 else "failed"
         }
 
+
 def main(argv=None):
     p = argparse.ArgumentParser(description="Bronze ingestion: bike-sharing and weather data")
-    p.add_argument("--data-dir", default="data/raw") ## merknad
+    p.add_argument("--data-dir", default=default_raw_dir())
     p.add_argument("--start", default="2022-01", help="first trip month, YYYY-MM")
     p.add_argument("--end", default=None, help="last trip month (default: current month)")
     p.add_argument("--trips-base-url", default=TRIPS_BASE)
