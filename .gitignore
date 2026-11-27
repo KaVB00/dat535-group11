@@ -1,5 +1,5 @@
 # raw data is fetched by the pipeline, never committed
-Project/raw/
+Project/data/
 # virtual environments and Python caches
 .venv/
 __pycache__/
