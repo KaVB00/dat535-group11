@@ -1,5 +1,6 @@
 """Silver Layer: Bike Trips per City"""
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import functions as F
 from pyspark.sql.functions import (
     col,
     input_file_name,
@@ -9,7 +10,17 @@ from pyspark.sql.functions import (
     from_utc_timestamp,
     unix_micros,
     abs,
-    current_timestamp
+    current_timestamp,
+    radians,
+    sin,
+    cos,
+    asin,
+    sqrt,
+    pow,
+    when,
+    hour,
+    dayofweek,
+    date_trunc
 )
 
 # Read trips
@@ -30,15 +41,9 @@ def read_raw_trips(spark: SparkSession, raw_dir: str) -> DataFrame:
 def build_silver_trips(spark: SparkSession, raw_dir: str) -> DataFrame:
     """Return cleaned bike trips data with one row per trip.""" 
 
-    trips_raw = read_raw_trips(spark, raw_dir)
+    spark.conf.set("spark.sql.session.timeZone", "UTC")
 
-    # Remove duplicates
-    duplicate_cols = [
-        c for c in trips_raw.columns
-        if c not in ["src", "year_month"]
-    ]
-
-    trips_silver = trips_raw.dropDuplicates(duplicate_cols)
+    trips_silver = read_raw_trips(spark, raw_dir)
 
     # Convert data types
     trips_silver = (
@@ -56,6 +61,14 @@ def build_silver_trips(spark: SparkSession, raw_dir: str) -> DataFrame:
         .withColumn("started_ts", to_timestamp("started_at"))
         .withColumn("ended_ts", to_timestamp("ended_at"))
     )
+
+    # Remove duplicates
+    duplicate_cols = [
+        c for c in trips_silver.columns
+        if c not in ["src", "year_month"]
+    ]
+
+    trips_silver = trips_silver.dropDuplicates(duplicate_cols)
 
     # Derive Norwegian local timestamps
     trips_silver = (
@@ -105,13 +118,73 @@ def build_silver_trips(spark: SparkSession, raw_dir: str) -> DataFrame:
         )
     )
 
-    # Remove redundant columns
-    trips_silver = trips_silver.drop(
-        "src",
-        "started_at",
-        "ended_at"
+    # Convert coordinates from degrees to radians
+    lat1 = radians(col("start_station_latitude"))
+    lat2 = radians(col("end_station_latitude"))
+
+    lon1 = radians(col("start_station_longitude"))
+    lon2 = radians(col("end_station_longitude"))
+
+    # Haversine formula
+    a = (
+        pow(sin((lat2 - lat1) / 2), 2) +
+        cos(lat1) * cos(lat2) *
+        pow(sin((lon2 - lon1) / 2), 2)
     )
 
+    # Calculate straith-line disstance in kilometers
+    trips_silver = trips_silver.withColumn(
+        "distance_km",
+        when(
+            ~col("invalid_coordinates_flag"),
+            2 * 6371 * asin(sqrt(a))
+        )
+    )
+
+    # Calculate the minimum implied average speed
+    trips_silver = trips_silver.withColumn(
+        "speed_kmh",
+        when(
+            (col("duration") > 0) &
+            col("distance_km").isNotNull(),
+            (col("distance_km") * 3600) / col("duration")
+        )
+    )
+
+    # Flag potentially unrealistic speeds
+    trips_silver = trips_silver.withColumn(
+        "unrealistic_speed_flag",
+        col("speed_kmh") > 60
+    )
+
+    # Identify trips starting and ending at the same station
+    trips_silver = trips_silver.withColumn(
+        "is_round_trip",
+        col("start_station_id") == col("end_station_id")
+    )
+
+    # Derive local temporal features
+    trips_silver = (
+        trips_silver
+        .withColumn("local_hour", hour("started_local"))
+        .withColumn("weekday", dayofweek("started_local"))
+        .withColumn("is_weekend", col("weekday").isin(1, 7))
+    )
+
+    # Derive hourly UTC keys
+    trips_silver = (
+        trips_silver
+        .withColumn(
+            "started_hour_utc",
+            date_trunc("hour", col("starded_ts"))
+        )
+        .withColumn(
+            "ended_hour_utc",
+            date_trunc("hour", col("ended_ts"))
+        )
+    )
+
+    # Remove redundant columns
     return (
         trips_silver
         .drop("src", "started_at", "ended_at")
