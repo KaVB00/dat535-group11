@@ -176,7 +176,7 @@ def build_silver_trips(spark: SparkSession, raw_dir: str) -> DataFrame:
         trips_silver
         .withColumn(
             "started_hour_utc",
-            date_trunc("hour", col("starded_ts"))
+            date_trunc("hour", col("started_ts"))
         )
         .withColumn(
             "ended_hour_utc",
@@ -201,17 +201,30 @@ def trips_quality_metrics(spark: SparkSession, raw_dir: str) -> dict:
     silver = build_silver_trips(spark, raw_dir)
 
     rows_in = raw.count()
-    rows_out = silver.count()
+
+    metrics = silver.agg(
+        F.count("*").alias("rows_out"),
+
+        F.count(
+            F.when(col("short_trip_flag"), 1)
+        ).alias("short_trips"),
+
+        F.count(
+            F.when(col("invalid_duration_flag"), 1)
+        ).alias("invalid_duration"),
+
+        F.count(
+            F.when(col("invalid_coordinates_flag"), 1)
+        ).alias("invalid_coordinates"),
+
+        F.count(
+            F.when(col("unrealistic_speed_flag"), 1)
+        ).alias("unrealistic_speed")
+    ).first().asDict()
 
     return {
         "layer": "silver_trips",
         "rows_in": rows_in, 
-        "rows_out": rows_out,
-        "duplicates_removed": rows_in - rows_out,
-        "short_trips": silver.filter(
-            col("short_trip_flag")).count(),
-        "invalid_duration": silver.filter(
-            col("invalid_duration_flag")).count(),
-        "invalid_coordinates": silver.filter(
-            col("invalid_coordinates_flag")).count()
+        "duplicates_removed": rows_in - metrics["rows_out"],
+        **metrics
     }
